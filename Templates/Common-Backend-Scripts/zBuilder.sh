@@ -142,6 +142,9 @@ Help() {
     echo "                                                              "
     echo "       -v                 - (Optional) Verbose tracing        "
     echo "                                                              "
+    echo "       --prepareLogs      - (Optional) Prepare the build logs "
+    echo "                             for retrieval                    "
+    echo "                                                              "
     exit 0
 
 }
@@ -155,6 +158,8 @@ pipelineConfiguration="${SCRIPT_HOME}/pipelineBackend.config"
 buildUtilities="${SCRIPT_HOME}/utilities/dbbzBuilderUtils.sh"
 baselineRefUtilities="${SCRIPT_HOME}/utilities/baselineRefUtils.sh"
 fetchBuildDependenciesUtilities="${SCRIPT_HOME}/utilities/fetchBuildDependenciesUtils.sh"
+# Placing it here because it'll eventually be converted into a utility - just testing the long option parse first
+prepareLogsUtilities="${SCRIPT_HOME}/prepareLogs.sh"
 
 #
 # Internal Variables
@@ -198,6 +203,7 @@ zBuilderPublishArtitfRepositoryPassword="" # Artifact repository password file (
 
 DBBLogger=""
 Verbose=""
+PrepareLogs=""
 
 if [ "$HELP" = "?" ]; then
     Help
@@ -253,7 +259,7 @@ if [ $rc -eq 0 ]; then
     #
     # Get Options
     if [ $rc -eq 0 ]; then
-        while getopts "h:w:a:b:q:p:t:i:r:u:s:v" opt; do
+        while getopts "h:w:a:b:q:p:t:i:r:u:s:v-:" opt; do
             case $opt in
             h)
                 Help
@@ -372,6 +378,21 @@ if [ $rc -eq 0 ]; then
                     break
                 fi
                 HLQPrefix="$argument"
+                ;;
+            -)
+                # Long options (--name) are delivered by getopts as option '-' with OPTARG=name
+                # Using case statement to allow flexibility for additional long options
+                case "$OPTARG" in
+                prepareLogs)
+                    PrepareLogs=1
+                    ;;
+                *)
+                    rc=1
+                    ERRMSG=$PGM": [ERROR] Unknown option --${OPTARG}. rc="$rc
+                    echo $ERRMSG
+                    break
+                    ;;
+                esac
                 ;;
             \?)
                 Help
@@ -651,6 +672,17 @@ if [ $rc -eq 0 ]; then
         ERRMSG=$PGM": [ERROR] DBB Build Error. Check Console and Build Log for details. rc="$rc
         echo $ERRMSG
         rc=8
+    fi
+fi
+
+# Package the build logs into a tar file (--prepareLogs).
+# Runs regardless of the build result so logs are available for failed builds.
+if [ ! -z "${PrepareLogs}" ]; then
+    echo $PGM": [INFO] Preparing build logs."
+    "${prepareLogsUtilities}" -w "${Workspace}"
+    prepareLogsRc=$?
+    if [ $prepareLogsRc -ne 0 ]; then
+        echo $PGM": [WARNING] prepareLogs.sh failed. rc="$prepareLogsRc
     fi
 fi
 
