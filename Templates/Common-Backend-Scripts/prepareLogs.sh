@@ -63,6 +63,8 @@ Help() {
 # Either an absolute path or a relative path to the current working directory
 SCRIPT_HOME="$(dirname "$0")"
 pipelineConfiguration="${SCRIPT_HOME}/pipelineBackend.config"
+# Utility scripts
+prepareLogsUtilities="${SCRIPT_HOME}/utilities/prepareLogsUtilities.sh"
 # Customization - End
 
 #
@@ -116,6 +118,15 @@ if [ $rc -eq 0 ]; then
     else
         source $pipelineConfiguration
     fi
+
+    # Read and import prepare logs utilities
+    if [ ! -f "${prepareLogsUtilities}" ]; then
+        rc=8
+        ERRMSG=$PGM": [ERROR] Prepare logs utilities (${prepareLogsUtilities}) was not found. rc="$rc
+        echo $ERRMSG
+    else
+        source $prepareLogsUtilities
+    fi
 fi
 #
 # Get Options
@@ -147,88 +158,11 @@ if [ $rc -eq 0 ]; then
 fi
 
 #
-# Validate Options
-validateOptions() {
-
-    if [ -z "${Workspace}" ]; then
-        rc=8
-        ERRMSG=$PGM": [ERROR] Unique Workspace parameter (-w) is required. rc="$rc
-        echo $ERRMSG
-    else
-
-        # Compute the outDir parameter
-        outDir=$(getLogDir)
-
-        if [ ! -d "$outDir" ]; then
-            rc=8
-            ERRMSG=$PGM": [ERROR] The logs directory '$outDir' was not found. Skipping creation of tar file. rc="$rc
-            echo $ERRMSG
-        fi
-
-        if [ ! -d "$(getWorkDirectory)" ]; then
-            rc=8
-            ERRMSG=$PGM": [ERROR] Workspace Directory ($(getWorkDirectory)) was not found. rc="$rc
-            echo $ERRMSG
-        fi
-    fi
-
-}
-
-# Call validate Options
+# Prepare the logs. The logic, including validation of the Workspace option,
+# lives in utilities/prepareLogsUtilities.sh
 if [ $rc -eq 0 ]; then
-    validateOptions
-fi
-
-# Print info
-# Ready to go  TLD: Suggest in the section to echo as much as possible
-if [ $rc -eq 0 ]; then
-    echo $PGM": [INFO] **************************************************************"
-    echo $PGM": [INFO] ** Started - Prepare logs on HOST/USER: ${SYS}/${USER}"
-    echo $PGM": [INFO] **          Workspace:" $(getWorkDirectory)
-    echo $PGM": [INFO] **             LogDir:" ${outDir}
-    echo $PGM": [INFO] **************************************************************"
-fi
-
-# Start in working directory containing build directory
-if [ $rc -eq 0 ]; then
-
-    cd $outDir
-
-    # Get build directory name
-    # Assumes only one item prefixed with "build" (i.e. the run's build directory) in the working directory)
-    # DBEHM: Remember, that the build directory name is optional for zAppBuild
-
-    # BuildDir=$(ls -d build*)
-
-    # Create tar file name based on logs directory name
-
-    baseDir=$(basename $PWD)
-    cd ..
-
-    echo $PGM": [INFO] List directory contents"
-    CMD="ls -RlTr $baseDir"
-    echo $PGM": [INFO] ${CMD}"
-    ${CMD}
+    runPrepareLogs
     rc=$?
-fi
-
-if [ $rc -eq 0 ]; then
-
-    # Package files via tar so they can be downloaded in pipeline orchestrator's next steps
-    echo $PGM": [INFO] Create tar file"
-    CMD="tar -cf $baseDir.tar $baseDir"
-    echo $PGM": [INFO] ${CMD}"
-    ${CMD}
-    rc=$?
-fi
-
-if [ $rc -eq 0 ]; then
-    # Pass BuildLogFileName to pipeline orchestrator
-    echo $PGM": [INFO] Logs successfully stored at $PWD/$baseDir.tar"
-else
-    ERRMSG=$PGM": [ERROR] Error during Prepare Logs. Check Console for details. rc="$rc
-    echo $ERRMSG
-    rc=8
 fi
 
 exit $rc

@@ -158,8 +158,7 @@ pipelineConfiguration="${SCRIPT_HOME}/pipelineBackend.config"
 buildUtilities="${SCRIPT_HOME}/utilities/dbbzBuilderUtils.sh"
 baselineRefUtilities="${SCRIPT_HOME}/utilities/baselineRefUtils.sh"
 fetchBuildDependenciesUtilities="${SCRIPT_HOME}/utilities/fetchBuildDependenciesUtils.sh"
-# Placing it here because it'll eventually be converted into a utility - just testing the long option parse first
-prepareLogsUtilities="${SCRIPT_HOME}/prepareLogs.sh"
+prepareLogsUtilities="${SCRIPT_HOME}/utilities/prepareLogsUtilities.sh"
 
 #
 # Internal Variables
@@ -254,6 +253,15 @@ if [ $rc -eq 0 ]; then
         rc=8
         ERRMSG=$PGM": [ERROR] DBB-Build internal utilities (${fetchBuildDependenciesUtilities}) was not found. rc="$rc
         echo $ERRMSG
+    fi
+
+    # Read and import prepare logs utilities
+    if [ ! -f "${prepareLogsUtilities}" ]; then
+        rc=8
+        ERRMSG=$PGM": [ERROR] DBB-Build internal utilities (${prepareLogsUtilities}) was not found. rc="$rc
+        echo $ERRMSG
+    else
+        source $prepareLogsUtilities
     fi
 
     #
@@ -679,10 +687,10 @@ fi
 # Runs regardless of the build result so logs are available for failed builds.
 if [ ! -z "${PrepareLogs}" ]; then
     echo $PGM": [INFO] Preparing build logs."
-    "${prepareLogsUtilities}" -w "${Workspace}"
+    runPrepareLogs
     prepareLogsRc=$?
     if [ $prepareLogsRc -ne 0 ]; then
-        echo $PGM": [WARNING] prepareLogs.sh failed. rc="$prepareLogsRc
+        echo $PGM": [WARNING] Prepare logs failed. rc="$prepareLogsRc
     fi
 fi
 
